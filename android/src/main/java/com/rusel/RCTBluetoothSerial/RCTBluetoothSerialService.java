@@ -1,5 +1,6 @@
 package com.rusel.RCTBluetoothSerial;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.UUID;
@@ -38,6 +39,17 @@ class RCTBluetoothSerialService {
     private static final String STATE_NONE = "none";       // we're doing nothing
     private static final String STATE_CONNECTING = "connecting"; // now initiating an outgoing connection
     private static final String STATE_CONNECTED = "connected";  // now connected to a remote device
+
+    // Member thermal print
+    private OutputStream btOutputStream;
+    private InputStream btInputStream;
+    private Thread workerThread;
+    private String msg;
+
+    byte[] readBuffer;
+    int readBufferPosition;
+    int counter;
+    volatile boolean stopWorker;
 
     /**
      * Constructor. Prepares a new RCTBluetoothSerialModule session.
@@ -147,6 +159,10 @@ class RCTBluetoothSerialService {
 
         mModule.onConnectionSuccess("Connected to " + device.getName());
         setState(STATE_CONNECTED);
+
+        if (device.getName().equalsIgnoreCase("ANTHERMAL")) {
+            beginListenData();
+        }
     }
 
 
@@ -183,6 +199,119 @@ class RCTBluetoothSerialService {
         if (mConnectedThread != null) {
             mConnectedThread.cancel();
             mConnectedThread = null;
+        }
+    }
+
+    /*********************/
+    /** Print to Thermal Printer Method **/
+    /*********************/
+
+    /**
+     * Listen data
+     */
+    private void beginListenData() {
+        try {
+            // This is the ASCII code for a newline character
+            final byte delimiter = 10;
+
+            stopWorker = false;
+            readBufferPosition = 0;
+            readBuffer = new byte[1024];
+
+            workerThread = new Thread(new Runnable() {
+                public void run() {
+                    while (!Thread.currentThread().isInterrupted() && !stopWorker) {
+                        try {
+                            int bytesAvailable = btInputStream.available();
+
+                            if (bytesAvailable > 0) {
+                                Log.i("bytes", "bytes available = " + bytesAvailable);
+
+                                byte[] packetBytes = new byte[bytesAvailable];
+                                btInputStream.read(packetBytes);
+                                for (int i = 0; i < bytesAvailable; i++) {
+                                    byte b = packetBytes[i];
+                                    if (b == delimiter) {
+                                        Log.i("pawan", "Found New Line");
+                                        byte[] encodedBytes = new byte[readBufferPosition];
+                                        System.arraycopy(readBuffer, 0, encodedBytes, 0, encodedBytes.length);
+                                        final String data = new String(encodedBytes, "US-ASCII");
+                                        readBufferPosition = 0;
+
+                                    } else {
+                                        readBuffer[readBufferPosition++] = b;
+                                    }
+                                }
+                            }
+                        } catch (IOException ex) {
+
+                            Log.i("pawan", "caught : " + ex.getMessage());
+                            stopWorker = true;
+                        }
+
+                    }
+                }
+            });
+
+            workerThread.start();
+        }
+        catch (NullPointerException e) {
+            e.printStackTrace();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Print logo
+     */
+    public void printLogo () {
+        if("ANTHERMAL".equalsIgnoreCase(mAdapter.getName())) {
+            byte[] logo = new byte[5];
+            logo[0] = 0x1B;
+            logo[1] = 0x4C;
+            logo[2] = 0x4F;
+            logo[3] = 0x47;
+            logo[4] = 0x4F;
+
+            try {
+                if (btOutputStream != null) {
+                    btOutputStream.write(logo);
+                    btOutputStream.flush();
+
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException ex) {
+                        ex.printStackTrace();
+                    }
+
+                    byte[] rf3 = new byte[3];
+                    rf3[0] = 0x1B;
+                    rf3[1] = 0x4B;
+                    rf3[2] = 0x0C;
+                    btOutputStream.write(rf3);
+                    btOutputStream.flush();
+                    btOutputStream.write(rf3);
+                    btOutputStream.flush();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void sendPrintData (String message) throws IOException {
+        try {
+            if (message.contains("KVision")) {
+                msg = message.replaceAll("~", "\n").trim();
+            } else {
+                msg = message.replaceAll("~", "\n").replaceAll("#", "     ").trim();
+            }
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -227,7 +356,7 @@ class RCTBluetoothSerialService {
                 mModule.onError(e);
 
                 // Some 4.1 devices have problems, try an alternative way to connect
-                // See https://github.com/don/RCTBluetoothSerialModule/issues/89
+                // See https://github.com/don/BluetoothSerialModule/issues/89
                 try {
                     Log.i(TAG,"Trying fallback...");
                     mmSocket = (BluetoothSocket) mmDevice.getClass().getMethod("createRfcommSocket", new Class[] {int.class}).invoke(mmDevice,1);
@@ -238,6 +367,8 @@ class RCTBluetoothSerialService {
                     mModule.onError(e2);
                     try {
                         mmSocket.close();
+                        btOutputStream.close(); // Print thermal
+                        btInputStream.close(); // Print thermal
                     } catch (Exception e3) {
                         Log.e(TAG, "unable to close() socket during connection failure", e3);
                         mModule.onError(e3);
@@ -259,6 +390,8 @@ class RCTBluetoothSerialService {
         void cancel() {
             try {
                 mmSocket.close();
+                btOutputStream.close(); // Print thermal
+                btInputStream.close(); // Print thermal
             } catch (Exception e) {
                 Log.e(TAG, "close() of connect socket failed", e);
                 mModule.onError(e);
@@ -285,6 +418,8 @@ class RCTBluetoothSerialService {
             try {
                 tmpIn = socket.getInputStream();
                 tmpOut = socket.getOutputStream();
+                btOutputStream = socket.getOutputStream(); // Print thermal
+                btInputStream = socket.getInputStream(); // Print thermal
             } catch (Exception e) {
                 Log.e(TAG, "temp sockets not created", e);
                 mModule.onError(e);
@@ -334,6 +469,8 @@ class RCTBluetoothSerialService {
         void cancel() {
             try {
                 mmSocket.close();
+                btOutputStream.close(); // Print thermal
+                btInputStream.close(); // Print thermal
             } catch (Exception e) {
                 Log.e(TAG, "close() of connect socket failed", e);
             }

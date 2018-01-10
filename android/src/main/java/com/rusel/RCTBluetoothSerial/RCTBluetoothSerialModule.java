@@ -1,5 +1,8 @@
 package com.rusel.RCTBluetoothSerial;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.StringReader;
 import java.lang.reflect.Method;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -384,6 +387,37 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule impleme
     @ReactMethod
     public void readUntilDelimiter(String delimiter, Promise promise) {
         promise.resolve(readUntil(delimiter));
+    }
+
+    /**********************/
+    /** Printer thermal **/
+
+    @ReactMethod
+    /**
+     * Print to printer thermal
+     */
+    public void printToDevice(String message, Promise promise) {
+        String strLine = "";
+        BufferedReader br = new BufferedReader(new StringReader(message.trim()));
+
+        try {
+            mBluetoothService.printLogo();
+            while ((strLine = br.readLine()) != null) {
+                if(message.contains("KVision")) {
+                    strLine = strLine.replaceAll("~", "\n").trim();
+                }
+                else {
+                    strLine = strLine.replaceAll("~", "\n")
+                            .replaceAll("#", "     ").trim();
+                }
+
+                mBluetoothService.sendPrintData(strLine.trim());
+                promise.resolve(true);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            promise.reject(new Exception("Service discovery failed"));
+        }
     }
 
 
