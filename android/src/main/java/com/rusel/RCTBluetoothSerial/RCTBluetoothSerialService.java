@@ -111,6 +111,41 @@ class RCTBluetoothSerialService {
     }
 
     /**
+     * Write to the ConnectedThread in an unsynchronized manner
+     * @param message The data to write
+     * @see ConnectedThread#writeMessage(String)
+     */
+    void writeMessage(String message) {
+        if (D) Log.d(TAG, "Write in service, state is " + STATE_CONNECTED);
+        ConnectedThread r; // Create temporary object
+
+        // Synchronize a copy of the ConnectedThread
+        synchronized (this) {
+            if (!isConnected()) return;
+            r = mConnectedThread;
+        }
+
+        r.writeMessage(message); // Perform the write unsynchronized
+    }
+
+    /**
+     * Write to the ConnectedThread in an unsynchronized manner
+     * @see ConnectedThread#writeLogo()
+     */
+    void writeLogo() {
+        if (D) Log.d(TAG, "Write in service, state is " + STATE_CONNECTED);
+        ConnectedThread r; // Create temporary object
+
+        // Synchronize a copy of the ConnectedThread
+        synchronized (this) {
+            if (!isConnected()) return;
+            r = mConnectedThread;
+        }
+
+        r.writeLogo(); // Perform the write unsynchronized
+    }
+
+    /**
      * Stop all threads
      */
     synchronized void stop() {
@@ -473,6 +508,64 @@ class RCTBluetoothSerialService {
                 btInputStream.close(); // Print thermal
             } catch (Exception e) {
                 Log.e(TAG, "close() of connect socket failed", e);
+            }
+        }
+
+        void writeMessage(String message) {
+            try {
+                byte[] rf3 = new byte[3];
+
+                rf3[0] = 0x1B;
+                rf3[1] = 0x4B;
+                rf3[2] = 0x0C;
+                mmOutStream.write(rf3);
+                mmOutStream.flush();
+                mmOutStream.write(rf3);
+                mmOutStream.flush();
+
+                if(message.contains("KVision")) {
+                    msg = message.replaceAll("~", "\n").trim();
+                } else {
+                    msg = message.replaceAll("~", "\n").replaceAll("#", "     ").trim();
+                }
+                if (D) Log.d(TAG, "Write in thread " + message);
+                mmOutStream.write(msg.getBytes());
+                mmOutStream.flush();
+            } catch (Exception e) {
+                Log.e(TAG, "Exception during write", e);
+                mModule.onError(e);
+            }
+        }
+
+        void writeLogo() {
+            byte[] logo = new byte[5];
+            logo[0] = 0x1B;
+            logo[1] = 0x4C;
+            logo[2] = 0x4F;
+            logo[3] = 0x47;
+            logo[4] = 0x4F;
+
+            try {
+                mmOutStream.write(logo);
+                mmOutStream.flush();
+
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException ex) {
+                    ex.printStackTrace();
+                }
+
+                byte[] rf3 = new byte[3];
+                rf3[0] = 0x1B;
+                rf3[1] = 0x4B;
+                rf3[2] = 0x0C;
+                mmOutStream.write(rf3);
+                mmOutStream.flush();
+                mmOutStream.write(rf3);
+                mmOutStream.flush();
+            } catch (Exception e) {
+                Log.e(TAG, "Exception during write", e);
+                mModule.onError(e);
             }
         }
     }

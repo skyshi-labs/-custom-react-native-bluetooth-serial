@@ -15,6 +15,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Build;
+import android.text.Html;
 import android.util.Log;
 import android.util.Base64;
 
@@ -397,27 +398,33 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule impleme
      * Print to printer thermal
      */
     public void printToDevice(String message, Promise promise) {
-        String strLine = "";
-        BufferedReader br = new BufferedReader(new StringReader(message.trim()));
-
+        if (D) Log.d(TAG, "Write " + message);
         try {
-            mBluetoothService.printLogo();
+            String html = Html.fromHtml(message).toString();
+            String strLine = "";
+            BufferedReader br = new BufferedReader(new StringReader(message.trim()));
+            // mBluetoothService.writeLogo();
+
             while ((strLine = br.readLine()) != null) {
-                if(message.contains("KVision")) {
+                if (message.contains("KVision")) {
                     strLine = strLine.replaceAll("~", "\n").trim();
-                }
-                else {
+                } else {
                     strLine = strLine.replaceAll("~", "\n")
                             .replaceAll("#", "     ").trim();
                 }
 
-                mBluetoothService.sendPrintData(strLine.trim());
-                promise.resolve(true);
+                Log.d(TAG, html);
+                Log.d(TAG, strLine);
+                mBluetoothService.writeMessage(strLine);
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-            promise.reject(new Exception("Service discovery failed"));
+        } catch (Exception e) {
+            Log.e(TAG, "Exception during write", e);
         }
+        promise.resolve(true);
+    }
+
+    public void printLogoToDevice(Promise promise) {
+        mBluetoothService.writeLogo();
     }
 
 
