@@ -400,7 +400,6 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule impleme
     public void printToDevice(String message, Promise promise) {
         if (D) Log.d(TAG, "Write " + message);
         try {
-            String html = Html.fromHtml(message).toString();
             String strLine = "";
             BufferedReader br = new BufferedReader(new StringReader(message.trim()));
             // mBluetoothService.writeLogo();
@@ -413,8 +412,6 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule impleme
                             .replaceAll("#", "     ").trim();
                 }
 
-                Log.d(TAG, html);
-                Log.d(TAG, strLine);
                 mBluetoothService.writeMessage(strLine);
             }
         } catch (Exception e) {
