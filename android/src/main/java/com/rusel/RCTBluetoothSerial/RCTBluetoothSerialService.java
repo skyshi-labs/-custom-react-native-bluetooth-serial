@@ -194,10 +194,6 @@ class RCTBluetoothSerialService {
 
         mModule.onConnectionSuccess("Connected to " + device.getName());
         setState(STATE_CONNECTED);
-
-        if (device.getName().equalsIgnoreCase("ANTHERMAL")) {
-            beginListenData();
-        }
     }
 
 
@@ -234,119 +230,6 @@ class RCTBluetoothSerialService {
         if (mConnectedThread != null) {
             mConnectedThread.cancel();
             mConnectedThread = null;
-        }
-    }
-
-    /*********************/
-    /** Print to Thermal Printer Method **/
-    /*********************/
-
-    /**
-     * Listen data
-     */
-    private void beginListenData() {
-        try {
-            // This is the ASCII code for a newline character
-            final byte delimiter = 10;
-
-            stopWorker = false;
-            readBufferPosition = 0;
-            readBuffer = new byte[1024];
-
-            workerThread = new Thread(new Runnable() {
-                public void run() {
-                    while (!Thread.currentThread().isInterrupted() && !stopWorker) {
-                        try {
-                            int bytesAvailable = btInputStream.available();
-
-                            if (bytesAvailable > 0) {
-                                Log.i("bytes", "bytes available = " + bytesAvailable);
-
-                                byte[] packetBytes = new byte[bytesAvailable];
-                                btInputStream.read(packetBytes);
-                                for (int i = 0; i < bytesAvailable; i++) {
-                                    byte b = packetBytes[i];
-                                    if (b == delimiter) {
-                                        Log.i("pawan", "Found New Line");
-                                        byte[] encodedBytes = new byte[readBufferPosition];
-                                        System.arraycopy(readBuffer, 0, encodedBytes, 0, encodedBytes.length);
-                                        final String data = new String(encodedBytes, "US-ASCII");
-                                        readBufferPosition = 0;
-
-                                    } else {
-                                        readBuffer[readBufferPosition++] = b;
-                                    }
-                                }
-                            }
-                        } catch (IOException ex) {
-
-                            Log.i("pawan", "caught : " + ex.getMessage());
-                            stopWorker = true;
-                        }
-
-                    }
-                }
-            });
-
-            workerThread.start();
-        }
-        catch (NullPointerException e) {
-            e.printStackTrace();
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * Print logo
-     */
-    public void printLogo () {
-        if("ANTHERMAL".equalsIgnoreCase(mAdapter.getName())) {
-            byte[] logo = new byte[5];
-            logo[0] = 0x1B;
-            logo[1] = 0x4C;
-            logo[2] = 0x4F;
-            logo[3] = 0x47;
-            logo[4] = 0x4F;
-
-            try {
-                if (btOutputStream != null) {
-                    btOutputStream.write(logo);
-                    btOutputStream.flush();
-
-                    try {
-                        Thread.sleep(2000);
-                    } catch (InterruptedException ex) {
-                        ex.printStackTrace();
-                    }
-
-                    byte[] rf3 = new byte[3];
-                    rf3[0] = 0x1B;
-                    rf3[1] = 0x4B;
-                    rf3[2] = 0x0C;
-                    btOutputStream.write(rf3);
-                    btOutputStream.flush();
-                    btOutputStream.write(rf3);
-                    btOutputStream.flush();
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    public void sendPrintData (String message) throws IOException {
-        try {
-            if (message.contains("KVision")) {
-                msg = message.replaceAll("~", "\n").trim();
-            } else {
-                msg = message.replaceAll("~", "\n").replaceAll("#", "     ").trim();
-            }
-        } catch (NullPointerException e) {
-            e.printStackTrace();
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
@@ -513,16 +396,6 @@ class RCTBluetoothSerialService {
 
         void writeMessage(String message) {
             try {
-                byte[] rf3 = new byte[3];
-
-                rf3[0] = 0x1B;
-                rf3[1] = 0x4B;
-                rf3[2] = 0x0C;
-                mmOutStream.write(rf3);
-                mmOutStream.flush();
-                mmOutStream.write(rf3);
-                mmOutStream.flush();
-
                 if(message.contains("KVision")) {
                     msg = message.replaceAll("~", "\n").trim();
                 } else {
