@@ -289,7 +289,7 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule impleme
                     if (D) Log.d(TAG, "Discovery finished");
                     WritableMap d = Arguments.createMap();
                     d.putString("type", "stop");
-                    sendEvent(STOP_UNPAIRED_DEVICE, d);
+                    sendEvent(SCAN_UNPAIRED_DEVICE, d);
 
                     try {
                         mReactContext.unregisterReceiver(this);
