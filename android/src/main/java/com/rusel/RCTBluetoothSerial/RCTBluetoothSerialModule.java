@@ -46,6 +46,8 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule impleme
     private static final String CONN_LOST = "connectionLost";
     private static final String DEVICE_READ = "read";
     private static final String ERROR = "error";
+    private static final String SCAN_UNPAIRED_DEVICE = "scanUnpairedDevice";
+    private static final String STOP_UNPAIRED_DEVICE = "stopUnpairedDevice";
 
     // Other stuff
     private static final int REQUEST_ENABLE_BLUETOOTH = 1;
@@ -258,6 +260,48 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule impleme
         } else {
             promise.resolve(Arguments.createArray());
         }
+    }
+
+    @ReactMethod
+    /**
+     * Discover unpaired bluetooth devices
+     */
+    public void scanUnpairedDevices () {
+        mBluetoothAdapter.startDiscovery();
+        IntentFilter intentFilter = new IntentFilter();
+
+        intentFilter.addAction(BluetoothDevice.ACTION_FOUND);
+        intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+
+        final BroadcastReceiver deviceDiscoveryReceiver = new BroadcastReceiver() {
+            private WritableArray unpairedDevices = Arguments.createArray();
+            public void onReceive(Context context, Intent intent) {
+                String action = intent.getAction();
+                if (D) Log.d(TAG, "onReceive called");
+
+                if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+
+                    BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                    WritableMap d = deviceToWritableMap(device);
+                    d.putString("type", "scan");
+                    sendEvent(SCAN_UNPAIRED_DEVICE, d);
+                } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
+                    if (D) Log.d(TAG, "Discovery finished");
+                    WritableMap d = Arguments.createMap();
+                    d.putString("type", "stop");
+                    sendEvent(STOP_UNPAIRED_DEVICE, d);
+
+                    try {
+                        mReactContext.unregisterReceiver(this);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Unable to unregister receiver", e);
+                        onError(e);
+                    }
+                }
+            }
+        };
+
+        mReactContext.registerReceiver(deviceDiscoveryReceiver, intentFilter);
     }
 
     @ReactMethod
