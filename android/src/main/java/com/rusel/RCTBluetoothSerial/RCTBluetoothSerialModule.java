@@ -452,12 +452,12 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule impleme
                 if (message.contains("KVision")) {
                     strLine = strLine.replaceAll("~", "\n").trim();
                 } else {
-                    strLine = strLine.replaceAll("~", "\n")
-                            .replaceAll("#", "     ").trim();
+                    strLine = strLine.replaceAll("~", "\n").replaceAll("#", "     ").trim();
                 }
 
                 mBluetoothService.writeMessage(strLine);
             }
+            mBluetoothService.stop();
         } catch (Exception e) {
             Log.e(TAG, "Exception during write", e);
         }

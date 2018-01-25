@@ -41,15 +41,9 @@ class RCTBluetoothSerialService {
     private static final String STATE_CONNECTED = "connected";  // now connected to a remote device
 
     // Member thermal print
-    private OutputStream btOutputStream;
-    private InputStream btInputStream;
-    private Thread workerThread;
+    //private OutputStream btOutputStream;
+    //private InputStream btInputStream;
     private String msg;
-
-    byte[] readBuffer;
-    int readBufferPosition;
-    int counter;
-    volatile boolean stopWorker;
 
     /**
      * Constructor. Prepares a new RCTBluetoothSerialModule session.
@@ -285,8 +279,8 @@ class RCTBluetoothSerialService {
                     mModule.onError(e2);
                     try {
                         mmSocket.close();
-                        btOutputStream.close(); // Print thermal
-                        btInputStream.close(); // Print thermal
+                        //btOutputStream.close(); // Print thermal
+                        //btInputStream.close(); // Print thermal
                     } catch (Exception e3) {
                         Log.e(TAG, "unable to close() socket during connection failure", e3);
                         mModule.onError(e3);
@@ -308,8 +302,8 @@ class RCTBluetoothSerialService {
         void cancel() {
             try {
                 mmSocket.close();
-                btOutputStream.close(); // Print thermal
-                btInputStream.close(); // Print thermal
+                //btOutputStream.close(); // Print thermal
+                //btInputStream.close(); // Print thermal
             } catch (Exception e) {
                 Log.e(TAG, "close() of connect socket failed", e);
                 mModule.onError(e);
@@ -336,8 +330,8 @@ class RCTBluetoothSerialService {
             try {
                 tmpIn = socket.getInputStream();
                 tmpOut = socket.getOutputStream();
-                btOutputStream = socket.getOutputStream(); // Print thermal
-                btInputStream = socket.getInputStream(); // Print thermal
+                //btOutputStream = socket.getOutputStream(); // Print thermal
+                //btInputStream = socket.getInputStream(); // Print thermal
             } catch (Exception e) {
                 Log.e(TAG, "temp sockets not created", e);
                 mModule.onError(e);
@@ -387,8 +381,8 @@ class RCTBluetoothSerialService {
         void cancel() {
             try {
                 mmSocket.close();
-                btOutputStream.close(); // Print thermal
-                btInputStream.close(); // Print thermal
+                //btOutputStream.close(); // Print thermal
+                //btInputStream.close(); // Print thermal
             } catch (Exception e) {
                 Log.e(TAG, "close() of connect socket failed", e);
             }
